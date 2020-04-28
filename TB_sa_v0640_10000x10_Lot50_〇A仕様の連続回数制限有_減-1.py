@@ -23,15 +23,15 @@ id_maru_a = pd.read_csv(path.join(path.dirname(__file__), 'Relationship_bw_ID_Sh
 
 #計算条件
 #ロット数の定義
-Lot_num = 50#len(ms)
+Lot_num = 5#len(ms)
 Lot_set = np.zeros(1,np.int32)
-num_step = 10000#総計算回数(300台の時に10万回計算に相当する）
+num_step = 300000#総計算回数(300台の時に10万回計算に相当する）
 num_rotation = 10 #初期ロットから再計算する回数
-num_repeat = 1#繰り返し実行数
+num_repeat = 10#繰り返し実行数
 _4way_replace_flag = False#True#False#True#False#4wayの並び替え制限:Trueで制限あり、Falseで制限なし
 _maru_A_replace_flag =True#False#True#False#〇A仕様の並び替え制限:Trueで制限あり、Falseで制限なし
 _maru_A_replace_renzoku_flag =True#True#False#True#False#〇A仕様の並び替えを同一仕様が連続している回数で制限する:Trueで制限あり、Falseで制限なし
-_maru_A_replace_SA_flag =True#True#False#True#False#〇A仕様の並び替えを同一仕様が連続している回数で制限する.SAで最小化する:Trueで制限あり、Falseで制限なし
+_maru_A_replace_SA_flag =False#True#False#True#False#〇A仕様の並び替えを同一仕様が連続している回数で制限する.SAで最小化する:Trueで制限あり、Falseで制限なし
 
 ##pwr_replace_flag = True#False#〇Aの並び替え制限:Trueで制限あり、Falseで制限なし
 ##heater_replace_flag = True#False#〇Aの並び替え制限:Trueで制限あり、Falseで制限なし
@@ -166,7 +166,6 @@ class GroupingProblem(Annealer):
             #フラグを立てる（コスト関数計算用)
             cost_update[0] = 1
 
-
             #並び替えた方法次第で戻し方が異なる
             if cost_update_4way[0] != 0:
 
@@ -264,7 +263,6 @@ class GroupingProblem(Annealer):
                ID_maru_a[a_g[0]] , ID_maru_a[b_g[0]] = ID_maru_a[b_g[0]], ID_maru_a[a_g[0]]
                n_df5[:,:] = n_df6[ID_maru_a,:]
 
-
             n_df2 = n_df4[ID,:]
 ##            print("AAA")
 
@@ -286,7 +284,7 @@ class GroupingProblem(Annealer):
                     Tfactor2 = -math.log(self.Tmax / self.Tmin)
                     T = self.Tmax * math.exp(Tfactor2 * step_n[0] / self.steps)                   
                     if _maru_A_replace_SA_flag:
-                       T_n = - int(3/(1+math.exp(-(math.log(T)-2.5))))+1
+                       T_n = - int(2/(1+math.exp(-(math.log(T)-2.5))))
                     else:
                        T_n = 0
                     #print(n_df5_temp)
@@ -304,16 +302,17 @@ class GroupingProblem(Annealer):
                        
                        End_k = (Lot_set[0] + 1) * Lot_num#len(ms)-1
                        
+                    #for k in range(Lot_set[0] * Lot_num,min(((Lot_set[0] + 1) * Lot_num),len(ms)-1)):
+##                    for k in range(0,len(ms)-1):
                     for k in range(Start_k,End_k):
                        for l in range(len(n_df7[0,:])):
-                           if n_df7[k,l] == n_df7[k+1,l] and n_df7[k,l] == 1:
+                           if n_df5[k,l] == n_df5[k+1,l] and n_df5[k,l] == 1:
                               n_df5_temp1[l] =  n_df5_temp1[l] + 1
 ##                    print(n_df5_temp1) 
                     a = random.randint(0 + Lot_set[0] * Lot_num , (Lot_set[0] + 1) * Lot_num-1)
                     b = random.randint(0 + Lot_set[0] * Lot_num , (Lot_set[0] + 1) * Lot_num-1)
                     for j in range(0,50):
                              if j > 48:
-                               #print(j)
                                a = b
                                break
                              if n_df3[a*2] == n_df3[b*2] and n_df3[a*2+1] == n_df3[b*2+1]:
@@ -325,19 +324,16 @@ class GroupingProblem(Annealer):
                              
                              n_df5_temp2 = np.zeros(len(n_df6[0,:]),np.float64)
                              for k in range(Start_k,End_k):
-##                             for k in range(0,len(ms)-1):
-##                             for k in range(Lot_set[0] * Lot_num,min(((Lot_set[0] + 1) * Lot_num),len(ms)-1)):
                                 for l in range(len(n_df5[0,:])):
                                     if n_df5[k,l] == n_df5[k+1,l] and n_df5[k,l] == 1:
                                        n_df5_temp2[l] =  n_df5_temp2[l] + 1
-##                             print(n_df5_temp2)          
                              n_df5_temp3 = (n_df5_temp1-n_df5_temp2) * maru_a_replace
-                             if np.min(n_df5_temp3) < T_n or np.count_nonzero(n_df5_temp3 < 0) >1:
+                             if np.min(n_df5_temp3) < T_n:
                                ID_maru_a[a] , ID_maru_a[b] = ID_maru_a[b], ID_maru_a[a]
                                a = random.randint(0 + Lot_set[0] * Lot_num , (Lot_set[0] + 1) * Lot_num-1)
                                continue
                              else:
-                               #print("--",j,n_df5_temp2,T_n)
+##                               print("--",j,n_df5_temp2,T_n)
                                break
                     
 ##                    if np.min(n_df5_temp3) < T_n:
